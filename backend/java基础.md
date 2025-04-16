@@ -28,5 +28,5 @@ JVM是运行Java字节码的虚拟机，负责将编译器的编译结果也就�
 
 字节码保留了解释型语言执行效率低的问题，也保留了解释型语言可移植的优点
 
-![java编译解释流程](E:\master\notes\photos\compile-pipeline.png)
+![java编译解释流程](https://github.com/Xuxiusheng/notes/blob/main/photos/compile-pipeline.png)
 
