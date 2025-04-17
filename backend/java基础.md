@@ -185,3 +185,90 @@ public final void wait() throws InterruptedException
 protected void finalize() throws Throwable { }
 ```
 
+## 反射
+
+字节码文件属于静态存储结构，在类加载过程中，类加载器会将这个静态结构转化为运行时数据结构，这个就是这个字节码代表的类的Class对象，在运行时程序可以访问这个Class对象获取相关的字段和方法信息，从而调用实例对象的信息
+
+```java
+// 绕过成员变量的权限检查
+package com.itheima.Test;
+
+import java.lang.reflect.Field;
+
+public class Test3 {
+    public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException {
+        PrivateClass pc = new PrivateClass();
+        Class<?> cls = PrivateClass.class;
+        Field attr = cls.getDeclaredField("privateId");
+        attr.setAccessible(true);
+        int value = (int) attr.get(pc);
+        System.out.println(value);
+    }
+}
+```
+
+```java
+// 绕过泛型类型检查
+
+package com.itheima.Test;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Test3 {
+    public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
+        List<Integer> list = new ArrayList<>();
+
+        Class<?> clz = list.getClass();
+        Method mt = clz.getDeclaredMethod("add", Object.class);
+        mt.invoke(list, "123");
+        for (Object o : list) {
+            System.out.println(o);
+        }
+    }
+}
+
+```
+
+## 注解
+
+注解本质上是一种特殊的接口，它继承自`java.lang.annotation.Annotation`接口。通过`@interface`关键字来定义注解
+
+可以用于提供额外的说明信息、编译检查和测试等
+
+### 注解的三种保留策略
+
+- Source：注解信息只会保留在源代码中，编译成字节码后会被丢弃，比如Override注解，只是用于在编译期检查方法是否被重写
+- Class：默认策略，注解信息会保留在字节码文件中，但JVM加载到内存中时，不会读取注解信息
+- Runtime：注解被jvm读取到内存中，运行时可以通过反射来获取和处理注解
+
+**反射基于Runtime注解实现**
+
+## 序列化
+
+怎么转移对象到另一个JVM
+
+- 序列化反序列化机制
+- 共享数据库
+- RPC远程调用
+
+### Serializable 与 Externalizable
+
+- Serializable只是一个标记接口，标识一个类可以被序列化，适用于简单的序列化场景
+- Externalizable接口扩展了Serializable，开发者必须重写序列化和反序列化方法，灵活性更高，适用于追求性能的场景，避免无效的序列化内存占用
+
+## 代理模式
+
+代理模式的作用主要是控制对象的访问，可以增加一些自定义的检查逻辑
+
+### 静态代理
+
+必须为每一个目标类都创建一个代理对象，如果新增了方法，目标类和代理类都要修改，不灵活
+
+### 动态代理
+
+#### JDK动态代理
+
+在JDK动态代理机制中
