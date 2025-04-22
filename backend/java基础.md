@@ -31,6 +31,8 @@
 - 封装：对象的属性和方法隐藏在对象内部，仅能通过外部接口访问，增强安全性
 - 继承：子类共享父类的属性和方法，提高代码复用性
 - 多态：不同类的对象对同一方法作出不同响应，分为运行时多态（重写）和编译时多态（重载）
+  - 切记：静态方法不能被重写，但是能够被覆盖，因为其在类加载时就和类绑定的，而重写是一个运行时行为
+
 
 ## 字节码的作用
 
@@ -47,7 +49,7 @@
 JDK9引入了接口默认方法，默认方法存在菱形问题，默认方法特例：如果A实现了接口B，C继承了A，同时实现了B，那调用方法时，调用的是重写过的方法；如果一个类实现了A和B两个接口，两个接口有相同的默认方法，那类必须重写这个方法，否则存在歧义
 
 如果A、B两个接口有同名方法，参数也相同，只有返回值不同，这样一个类是不能同时实现A和B的，因为方法签名只由方法名和参数决定，返回值并不属于签名的一部分，这种情况下编译器会报错
- 
+
 ## JVM的作用
 
 JVM是运行Java字节码的虚拟机，负责将编译器的编译结果也就是字节码加载进内存并转化成运行时数据结构，并对字节码逐行解释运行，字节码+不同系统的JVM的特定实现是实现Java语言平台无关性的关键所在
@@ -155,6 +157,8 @@ BigDecimal可以实现浮点数的运算，并且不存在精度丢失
   - 成员变量
   - 方法
 
+注意：抽象类有构造方法，但是只有在实现类实例化时才能调用，接口没有构造方法
+
 ## 变量
 
 ### 成员变量与局部变量
@@ -221,6 +225,23 @@ public final void wait() throws InterruptedException
 protected void finalize() throws Throwable { }
 ```
 
+### 创建对象的方式
+
+- new方法
+- 序列化反序列化
+- clone方法 （原型模式）
+- 反射
+
+```java
+// 反射创建对象
+public class Test {
+    public static void main(String[] args) throws InstantiationException, IllegalAccessException {
+        Address address = Address.class.newInstance();
+        System.out.println(address);
+    }
+}
+```
+
 ## 反射
 
 字节码文件属于静态存储结构，在类加载过程中，类加载器会将这个静态结构转化为运行时数据结构，这个就是这个字节码代表的类的Class对象，在运行时程序可以访问这个Class对象获取相关的字段和方法信息，从而调用实例对象的信息
@@ -270,17 +291,13 @@ public class Test3 {
 
 ## 注解
 
-注解本质上是一种特殊的接口，它继承自`java.lang.annotation.Annotation`接口。通过`@interface`关键字来定义注解
-
-可以用于提供额外的说明信息、编译检查和测试等
+注解本质上是一种特殊的接口，底层基于**反射**实现，它继承自`java.lang.annotation.Annotation`接口。通过`@interface`关键字来定义注解，可以用于提供额外的说明信息、编译检查和测试等
 
 ### 注解的三种保留策略
 
 - Source：注解信息只会保留在源代码中，编译成字节码后会被丢弃，比如Override注解，只是用于在编译期检查方法是否被重写
 - Class：默认策略，注解信息会保留在字节码文件中，但JVM加载到内存中时，不会读取注解信息
 - Runtime：注解被jvm读取到内存中，运行时可以通过反射来获取和处理注解
-
-**反射基于Runtime注解实现**
 
 ## 序列化
 
@@ -395,3 +412,116 @@ CGLIB是一个基于ASM的字节码生成库，允许在运行时对字节码进
 - 强制类型转换：当目标类型范围小于源类型
 
 在将long转换为int时，截取结果是低位部分，转换之前检查是否合规，避免数据丢失
+
+## 深拷贝 vs 浅拷贝
+
+### 浅拷贝
+
+```java
+public class Address implements Cloneable{
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        return super.clone();
+    }
+}
+
+public class Person extends Address{
+    private Address address;
+
+    public Address getAddress() {
+        return address;
+    }
+
+    public void setAddress(Address address) {
+        this.address = address;
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        Person person = (Person) super.clone();
+        return person;
+    }
+}
+
+public class Test {
+    public static void main(String[] args) throws CloneNotSupportedException {
+        Person p1 = new Person();
+        p1.setAddress(new Address());
+
+        Person p2 = (Person) p1.clone();
+        System.out.println(p1 == p2); // false
+        System.out.println(p1.getAddress() == p2.getAddress()); // true
+    }
+}
+```
+
+### 深拷贝
+
+```java
+public class Address implements Cloneable{
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        return super.clone();
+    }
+}
+
+public class Person extends Address{
+    private Address address;
+
+    public Address getAddress() {
+        return address;
+    }
+
+    public void setAddress(Address address) {
+        this.address = address;
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        Person person = (Person) super.clone();
+        person.setAddress((Address) person.getAddress().clone());
+        return person;
+    }
+}
+
+public class Test {
+    public static void main(String[] args) throws CloneNotSupportedException {
+        Person p1 = new Person();
+        p1.setAddress(new Address());
+
+        Person p2 = (Person) p1.clone();
+        System.out.println(p1 == p2); // false
+        System.out.println(p1.getAddress() == p2.getAddress()); // false
+    }
+}
+```
+
+## 异常
+
+### throw vs throws
+
+- throw用在方法体内部，用于手动抛出异常，throws位于方法名之后，用于抛出可能发生的异常
+- throw只能抛出一个异常，throws可以抛出多个异常
+- throws往往用于抛出checked Exception
+
+注意：Error也可以被catch，但是不建议，因为error类的错误往往是系统级的错误，catch之后程序会在系统不稳定的状态下运行，有很大的潜在风险
