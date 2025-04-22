@@ -9,6 +9,37 @@
 - Java具有平台无关性，字节码可以跨平台使用
 - Java只支持方法重载，不支持运算符重载，C++两者都支持
 
+## Java三大特性
+
+- 平台无关性
+- 内存自动管理机制
+- 面向对象（封装、继承、多态）
+
+## Java优势和劣势
+
+- 优势
+  - 强大的生态
+  - 自动内存管理
+  - 平台无关性（字节码文件本身不能跨平台，字节码和系统对应的JVM结合才能跨平台），JVM由C/C++开发
+
+- 劣势
+  - 半编译半解释型语言，性能和纯编译语言相比有差距
+  - 冷启动问题
+
+## 面向对象三大特性
+
+- 封装：对象的属性和方法隐藏在对象内部，仅能通过外部接口访问，增强安全性
+- 继承：子类共享父类的属性和方法，提高代码复用性
+- 多态：不同类的对象对同一方法作出不同响应，分为运行时多态（重写）和编译时多态（重载）
+
+## 字节码的作用
+
+**为什么JVM不直接解释java源代码，而要先编译成字节码**
+
+- 提高解释效率，java语言是一种高级语言，解释效率很差，字节码更接近机器语言，解释效率更高
+- 提高安全性，编译器在将源代码翻译成字节码时，会进行一系列的权限验证和安全性检查，避免非法访问等问题，提高安全性
+- 支持动态特性，java一些动态特性依赖于字节码（动态代理运行时生成字节码）
+
 ## 多接口实现不存在菱形问题
 
 多实现不会存在菱形问题，因为一个接口中的方法，因为在实现类中，这个方法是一定要被重写的，也就是说调用的方法一定是自己重写的方法，不会存在歧义
@@ -109,6 +140,11 @@ BigDecimal可以实现浮点数的运算，并且不存在精度丢失
 注意：BigDecimal也是存在精度丢失的风险的，是因为double本身的限制，初始化BigDecimal必须使用String类型初始化
 
 数值部分通过BigInteger表示，scale表示小数点位置，由于通过数组存储元素，性能相比于直接存储要差
+
+### 为什么保留int类型
+
+- 基本数据类型直接存储在栈中，而包装类型需要先获取地址，再去堆中获取对象实例本身，int读写性能好
+- int占用的内存空间更小，包装类型还要存储对象头等数据，还必须通过垃圾回收机制回收，int仅通过栈帧出入栈就可以自动回收，int存取性能更好
 
 ## 接口与抽象类
 
@@ -263,12 +299,99 @@ public class Test3 {
 
 代理模式的作用主要是控制对象的访问，可以增加一些自定义的检查逻辑
 
+### 装饰器模式
+
+代理模式侧重于控制对目标类的访问，装饰器模式侧重于对目标类功能进行增强，增加新的功能，代理模式只能嵌套一层，即代理类持有目标类引用，而装饰器可以多层嵌套形成一条装饰链，装饰器模式适用于不修改目标类的基础上为对象添加功能的场景
+
 ### 静态代理
 
 必须为每一个目标类都创建一个代理对象，如果新增了方法，目标类和代理类都要修改，不灵活
 
 ### 动态代理
 
+动态代理不需要针对目标类单独创建代理类，在运行时生成字节码，并加载到JVM
+
 #### JDK动态代理
 
-在JDK动态代理机制中
+在JDK动态代理机制中，代理的类必须至少实现一个接口，InvocationHandler接口和Proxy类是核心，Proxy类用于创建代理实例，InnovationHandler接口则定义了代理实例的调用处理逻辑，JDK动态代理类是运行时创建的，其字节码是基于接口生成的，会根据接口的方法定义相应的代理逻辑，所以目标类必须实现接口
+
+```java
+// 短信发送接口
+public interface SmsService {
+    String send(String message);
+}
+
+// 被代理的目标类
+public class SmsServiceImpl implements SmsService{
+    @Override
+    public String send(String message) {
+        System.out.println("send message: " + message);
+        return message;
+    }
+}
+
+// 代理类
+public class SmsServiceProxy implements InvocationHandler {
+
+    private final Object target;
+    public SmsServiceProxy(Object target) {
+        this.target = target;
+    }
+
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        System.out.println("before method: " + method.getName());
+        Object result = method.invoke(target, args);
+        System.out.println("after method: " + method.getName());
+        return result;
+    }
+}
+
+// 代理类工厂
+public class JdkProxyFactory {
+    public static Object getProxy(Object target) {
+        return Proxy.newProxyInstance(target.getClass().getClassLoader(), target.getClass().getInterfaces(), new SmsServiceProxy(target));
+    }
+}
+
+// 测试
+public class Test {
+    public static void main(String[] args) {
+        SmsService smsService = (SmsService) JdkProxyFactory.getProxy(new SmsServiceImpl());
+        smsService.send("xuxiusheng");
+    }
+}
+```
+
+
+
+#### CGLIB动态代理
+
+CGLIB是一个基于ASM的字节码生成库，允许在运行时对字节码进行修改和动态生成，CGLIB通过继承方式实现代理，通过Enhancer类创建代理对象实例，通过MethodInterceptor接口创建一个拦截器，在拦截器中定义代理逻辑，intecept方法会在代理对象调用目标方法时被触发
+
+#### JDK动态代理 vs CGLIB动态代理
+
+- JDK只能代理实现了接口的类，CGLIB的灵活性更高
+- JDK基于接口进行访问控制，安全性更高，可以避免非法访问，CGLIB直接生成目标类的子类，安全性要差一些
+- JDK基于反射，没有额外的继承体系和字节码修改操作，方法是基于接口的直接调用，性能更好，而CGLIB代理类是目标类的子类，涉及继承体系中的查找和调用，而且要对字节码进行修改，存在额外的开销
+
+总结：对安全性和性能有要求采用JDK动态代理，如果没有实现接口只能使用CGLIB动态代理
+
+## 语法糖
+
+语法糖主要用于简化开发，提高代码的可读性，语法糖不能被JVM识别解释，必须在编译过程中解糖，属于编译器行为
+
+### 常见的语法糖
+
+- 泛型
+- 自动装箱/拆箱
+- 可变长参数
+- try-with-resource
+- for-each
+
+## 数据类型转换
+
+- 自动类型转换（隐式转换）：当目标类型范围大于源类型
+- 强制类型转换：当目标类型范围小于源类型
+
+在将long转换为int时，截取结果是低位部分，转换之前检查是否合规，避免数据丢失
